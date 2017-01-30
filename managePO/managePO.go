@@ -117,8 +117,9 @@ func (t *ManagePO) Init(stub shim.ChaincodeStubInterface, function string, args 
 func (t *ManagePO) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
 	fmt.Println("query is running " + function)
 
+	return t.getWeatherData(stub, args)
 	// Handle different functions
-	if function == "getPO_byID" {													//Read a PO by transId
+	/*if function == "getPO_byID" {													//Read a PO by transId
 		return t.getPO_byID(stub, args)
 	} else if function == "getPO_byBuyer" {													//Read a PO by Buyer's name
 		return t.getPO_byBuyer(stub, args)
@@ -126,9 +127,31 @@ func (t *ManagePO) Query(stub shim.ChaincodeStubInterface, function string, args
 		return t.getPO_bySeller(stub, args)
 	} else if function == "get_AllPO" {													//Read all POs
 		return t.get_AllPO(stub, args)
-	}
+	}*/
 	fmt.Println("query did not find func: " + function)						//error
 	return nil, errors.New("Received unknown function query")
+}
+// ============================================================================================================================
+// getWeatherData - get Weather details
+// ============================================================================================================================
+func (t *ManagePO) getWeatherData(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	var transId, jsonResp string
+	var err error
+	fmt.Println("start getWeatherData")
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting ID of the var to query")
+	}
+	// set transId
+	transId = args[0]
+	valAsbytes, err := stub.GetState(transId)									//get the transId from chaincode state
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + transId + "\"}"
+		return nil, errors.New(jsonResp)
+	}
+	//fmt.Print("valAsbytes : ")
+	//fmt.Println(valAsbytes)
+	fmt.Println("end getPO_byID")
+	return valAsbytes, nil													//send it onward
 }
 // ============================================================================================================================
 // getPO_byID - get PO details for a specific ID from chaincode state
