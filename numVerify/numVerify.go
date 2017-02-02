@@ -6,7 +6,14 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	
+	"errors"	
+	"github.com/hyperledger/fabric/core/chaincode/shim"
 )
+
+// ManagePO example simple Chaincode implementation
+type ManagePO struct {
+}
 
 type Numverify struct {
 	Valid               bool   `json:"valid"`
@@ -21,7 +28,80 @@ type Numverify struct {
 	LineType            string `json:"line_type"`
 }
 
-func main() {
+// ============================================================================================================================
+// Main - start the chaincode for Verify Number
+// ============================================================================================================================
+func main() {			
+	err := shim.Start(new(ManagePO))
+	if err != nil {
+		fmt.Printf("Error starting Verify Number chaincode: %s", err)
+	}
+}
+// ============================================================================================================================
+// Init - reset all the things
+// ============================================================================================================================
+func (t *ManagePO) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	var msg string
+	var err error
+	if len(args) != 1 {
+		return nil, errors.New("Incorrect number of arguments. Expecting 1")
+	}
+	// Initialize the chaincode
+	msg = args[0]
+	fmt.Println("NumVerify chaincode is deployed successfully.");
+	
+	// Write the state to the ledger
+	err = stub.PutState("chalpat", []byte(msg)) //making a test var "chalpat", I find it handy to read/write to it right away to test the network
+	if err != nil {
+		return nil, err
+	}
+	
+	var empty []string
+	jsonAsBytes, _ := json.Marshal(empty)				//marshal an emtpy array of strings to clear the index
+	err = stub.PutState("Hello", jsonAsBytes)
+	if err != nil {
+		return nil, err
+	}
+	
+	return nil, nil
+}
+// ============================================================================================================================
+// Run - Our entry point for Invocations - [LEGACY] obc-peer 4/25/2016
+// ============================================================================================================================
+func (t *ManagePO) Run(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("run is running " + function)
+	return t.Invoke(stub, function, args)
+}
+// ============================================================================================================================
+// Invoke - Our entry point for Invocations
+// ============================================================================================================================
+func (t *ManagePO) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("invoke is running " + function)
+
+	// Handle different functions
+	if function == "init" {			// initialize the chaincode state, used as reset
+		return t.Init(stub, "init", args)
+	} else if function == "verify_number" {	// verify Number
+		return t.verifyNumber(stub, args)
+	}
+	fmt.Println("invoke did not find func: " + function)		// error
+	return nil, errors.New("Received unknown function invocation")
+}
+// ============================================================================================================================
+// Query - Our entry point for Queries
+// ============================================================================================================================
+func (t *ManagePO) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("query is running " + function)
+
+	//fmt.Println("query did not find func: " + function)						//error
+	return nil, errors.New("Received unknown function query")
+}
+// ============================================================================================================================
+// verify number - verify number, store into chaincode state
+// ============================================================================================================================
+func (t *ManagePO) verifyNumber(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	fmt.Println("start verifyNumber")
+
 	phone := "14158586273"
 	// QueryEscape escapes the phone string so
 	// it can be safely placed inside a URL query
@@ -33,7 +113,7 @@ func main() {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Fatal("NewRequest: ", err)
-		return
+		return nil, err
 	}
 
 	// For control over HTTP client headers,
@@ -48,7 +128,7 @@ func main() {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatal("Do: ", err)
-		return
+		return nil, err
 	}
 
 	// Callers should close resp.Body
@@ -70,4 +150,11 @@ func main() {
 	fmt.Println("Carrier   = ", record.Carrier)
 	fmt.Println("LineType  = ", record.LineType)
 
+	/*err = stub.PutState(POIndexStr, jsonAsBytes)  // store name of PO
+	if err != nil {
+		return nil, err
+	}*/
+
+	fmt.Println("end verifyNumber")
+	return nil, nil
 }
