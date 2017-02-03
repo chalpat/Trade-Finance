@@ -107,7 +107,7 @@ func (t *ManagePO) verifyNumber(stub shim.ChaincodeStubInterface, args []string)
 	// it can be safely placed inside a URL query
 	safePhone := url.QueryEscape(phone)
 
-	url := fmt.Sprintf("http://apilayer.net/api/validate?access_key=YOUR_ACCESS_KEY&number=%s", safePhone)
+	url := fmt.Sprintf("http://apilayer.net/api/validate?access_key=917d879a204238e61549b2f04d4e795b&number=%s", safePhone)
 
 	// Build the request
 	req, err := http.NewRequest("GET", url, nil)
