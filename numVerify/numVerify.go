@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	
 	"errors"	
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -130,6 +131,8 @@ func (t *ManagePO) verifyNumber(stub shim.ChaincodeStubInterface, args []string)
 		log.Fatal("Do: ", err)
 		return nil, err
 	}
+
+	fmt.Println("The response is::"+strconv.Itoa(resp.StatusCode))
 
 	// Callers should close resp.Body
 	// when done reading from it
