@@ -16,6 +16,8 @@ import (
 type ManagePO struct {
 }
 
+var phoneDetailsIndexStr = "_PhoneDetailsindex"			//name for the key/value that will store a list of all known PhoneDetails
+
 type Numverify struct {
 	Valid               bool   `json:"valid"`
 	Number              string `json:"number"`
@@ -59,7 +61,7 @@ func (t *ManagePO) Init(stub shim.ChaincodeStubInterface, function string, args 
 	
 	var empty []string
 	jsonAsBytes, _ := json.Marshal(empty)				//marshal an emtpy array of strings to clear the index
-	err = stub.PutState("Hello", jsonAsBytes)
+	err = stub.PutState(phoneDetailsIndexStr, jsonAsBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -147,16 +149,50 @@ func (t *ManagePO) verifyNumber(stub shim.ChaincodeStubInterface, args []string)
 		log.Println(err)
 	}
 
+	// build the phone_details json string manually
+	phone_details := 	`{`+
+		`"phone": "` + phone + `" , `+
+		`"country": "` + record.CountryName + `" , `+
+		`"location": "` + record.Location + `" , `+
+		`"carrier": "` + record.Carrier + `" , `+ 
+		`"linetype": "` + record.LineType + `" , `+ 
+	`}`
+	fmt.Println("phone_details: " + phone_details)
+	fmt.Print("order in bytes array: ")
+	fmt.Println([]byte(phone_details))
+	
+	err = stub.PutState(phone, []byte(phone_details))		//store Phone Details with phone number as key
+	if err != nil {
+		return nil, err
+	}
+
 	fmt.Println("Phone No. = ", record.InternationalFormat)
 	fmt.Println("Country   = ", record.CountryName)
 	fmt.Println("Location  = ", record.Location)
 	fmt.Println("Carrier   = ", record.Carrier)
 	fmt.Println("LineType  = ", record.LineType)
-
-	/*err = stub.PutState(POIndexStr, jsonAsBytes)  // store name of PO
+	
+	//get the PhoneDetails index
+	phoneDetailsIndexAsBytes, err := stub.GetState(phoneDetailsIndexStr)
+	if err != nil {
+		return nil, errors.New("Failed to get phone details index")
+	}
+	var phoneDetailsIndex []string
+	//fmt.Println("phone details index as bytes::"+phoneDetailsIndexAsBytes)
+	
+	json.Unmarshal(phoneDetailsIndexAsBytes, &phoneDetailsIndex)				//un stringify it aka JSON.parse()
+	fmt.Print("phoneDetailsIndex after unmarshal..before append: ")
+	fmt.Println(phoneDetailsIndex)
+	//append
+	phoneDetailsIndex = append(phoneDetailsIndex, phone)					//add phone details phone to index list
+	fmt.Println("! Phone index after appending phone number: ", phoneDetailsIndex)
+	jsonAsBytes, _ := json.Marshal(phoneDetailsIndex)
+	fmt.Print("jsonAsBytes: ")
+	fmt.Println(jsonAsBytes)
+	err = stub.PutState(phoneDetailsIndexStr, jsonAsBytes)					//store name of phone
 	if err != nil {
 		return nil, err
-	}*/
+	}
 
 	fmt.Println("end verifyNumber")
 	return nil, nil
