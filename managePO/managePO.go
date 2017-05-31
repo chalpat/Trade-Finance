@@ -47,6 +47,7 @@ type PO struct{							// Attributes of a PO
 	Price string `json:"price"`
 	Buyer_sign string `json:"buyer_sign"`
 	Seller_sign string `json:"seller_sign"`
+	Seller_Remarks string `json:"seller_remarks"`
 }
 // ============================================================================================================================
 // Main - start the chaincode for PO management
@@ -64,39 +65,45 @@ func (t *ManagePO) Init(stub shim.ChaincodeStubInterface, function string, args 
 	var msg string
 	var err error
 	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1")
+		errMsg := "{ \"message\" : \"Incorrect number of arguments. Expecting ' ' as an argument\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	// Initialize the chaincode
 	msg = args[0]
-	fmt.Println("ManagePO chaincode is deployed successfully.");
-	
 	// Write the state to the ledger
 	err = stub.PutState("abc", []byte(msg))				//making a test var "abc", I find it handy to read/write to it right away to test the network
 	if err != nil {
 		return nil, err
 	}
-	
 	var empty []string
 	jsonAsBytes, _ := json.Marshal(empty)								//marshal an emtpy array of strings to clear the index
 	err = stub.PutState(POIndexStr, jsonAsBytes)
 	if err != nil {
 		return nil, err
 	}
-	
+	tosend := "{ \"message\" : \"ManagePO chaincode is deployed successfully.\", \"code\" : \"200\"}"
+	err = stub.SetEvent("evtsender", []byte(tosend))
+	if err != nil {
+		return nil, err
+	} 
 	return nil, nil
 }
 // ============================================================================================================================
 // Run - Our entry point for Invocations - [LEGACY] obc-peer 4/25/2016
 // ============================================================================================================================
-	func (t *ManagePO) Run(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-		fmt.Println("run is running " + function)
-		return t.Invoke(stub, function, args)
-	}
+func (t *ManagePO) Run(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("run is running " + function)
+	return t.Invoke(stub, function, args)
+}
 // ============================================================================================================================
 // Invoke - Our entry point for Invocations
 // ============================================================================================================================
-	func (t *ManagePO) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
-		fmt.Println("invoke is running " + function)
+func (t *ManagePO) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("invoke is running " + function)
 
 	// Handle different functions
 	if function == "init" {													//initialize the chaincode state, used as reset
@@ -108,8 +115,13 @@ func (t *ManagePO) Init(stub shim.ChaincodeStubInterface, function string, args 
 	}else if function == "update_po" {									//update a PO
 		return t.update_po(stub, args)
 	}
-	fmt.Println("invoke did not find func: " + function)					//error
-	return nil, errors.New("Received unknown function invocation")
+	fmt.Println("invoke did not find func: " + function)
+	errMsg := "{ \"message\" : \"Received unknown function invocation\", \"code\" : \"503\"}"
+	err := stub.SetEvent("errEvent", []byte(errMsg))
+	if err != nil {
+		return nil, err
+	} 
+	return nil, nil			//error
 }
 // ============================================================================================================================
 // Query - Our entry point for Queries
@@ -128,24 +140,38 @@ func (t *ManagePO) Query(stub shim.ChaincodeStubInterface, function string, args
 		return t.get_AllPO(stub, args)
 	}
 	fmt.Println("query did not find func: " + function)						//error
-	return nil, errors.New("Received unknown function query")
+	errMsg := "{ \"message\" : \"Received unknown function query\", \"code\" : \"503\"}"
+	err := stub.SetEvent("errEvent", []byte(errMsg))
+	if err != nil {
+		return nil, err
+	} 
+	return nil, nil
 }
 // ============================================================================================================================
 // getPO_byID - get PO details for a specific ID from chaincode state
 // ============================================================================================================================
 func (t *ManagePO) getPO_byID(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var transId, jsonResp string
+	var transId string
 	var err error
 	fmt.Println("start getPO_byID")
 	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting ID of the var to query")
+		errMsg := "{ \"message\" : \"Incorrect number of arguments. Expecting 'transId' as an argument\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	// set transId
 	transId = args[0]
 	valAsbytes, err := stub.GetState(transId)									//get the transId from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + transId + "\"}"
-		return nil, errors.New(jsonResp)
+		errMsg := "{ \"message\" : \""+ transId + " not Found.\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	//fmt.Print("valAsbytes : ")
 	//fmt.Println(valAsbytes)
@@ -162,7 +188,12 @@ func (t *ManagePO) getPO_byBuyer(stub shim.ChaincodeStubInterface, args []string
 	fmt.Println("start getPO_byBuyer")
 	var err error
 	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1 argument")
+		errMsg := "{ \"message\" : \"Incorrect number of arguments. Expecting 'buyerName' as an argument\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	// set buyer's name
 	buyerName = args[0]
@@ -174,8 +205,8 @@ func (t *ManagePO) getPO_byBuyer(stub shim.ChaincodeStubInterface, args []string
 	//fmt.Print("poAsBytes : ")
 	//fmt.Println(poAsBytes)
 	json.Unmarshal(poAsBytes, &poIndex)								//un stringify it aka JSON.parse()
-	//fmt.Print("poIndex : ")
-	//fmt.Println(poIndex)
+	fmt.Print("poIndex : ")
+	fmt.Println(poIndex)
 	//fmt.Println("len(poIndex) : ")
 	//fmt.Println(len(poIndex))
 	jsonResp = "{"
@@ -189,8 +220,8 @@ func (t *ManagePO) getPO_byBuyer(stub shim.ChaincodeStubInterface, args []string
 		//fmt.Print("valueAsBytes : ")
 		//fmt.Println(valueAsBytes)
 		json.Unmarshal(valueAsBytes, &valIndex)
-		//fmt.Print("valIndex: ")
-		//fmt.Print(valIndex)
+		fmt.Print("valIndex: ")
+		fmt.Print(valIndex)
 		if valIndex.BuyerName == buyerName{
 			fmt.Println("Buyer found")
 			jsonResp = jsonResp + "\""+ val + "\":" + string(valueAsBytes[:])
@@ -199,11 +230,10 @@ func (t *ManagePO) getPO_byBuyer(stub shim.ChaincodeStubInterface, args []string
 			if i < len(poIndex)-1 {
 				jsonResp = jsonResp + ","
 			}
-		}
-		
+		} 
 	}
 	jsonResp = jsonResp + "}"
-	//fmt.Println("jsonResp : " + jsonResp)
+	fmt.Println("jsonResp : " + jsonResp)
 	//fmt.Print("jsonResp in bytes : ")
 	//fmt.Println([]byte(jsonResp))
 	fmt.Println("end getPO_byBuyer")
@@ -220,7 +250,12 @@ func (t *ManagePO) getPO_bySeller(stub shim.ChaincodeStubInterface, args []strin
 	fmt.Println("start getPO_bySeller")
 	var err error
 	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1 argument")
+		errMsg := "{ \"message\" : \"Incorrect number of arguments. Expecting 'sellerName' as an argument\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	// set seller name
 	sellerName = args[0]
@@ -232,8 +267,8 @@ func (t *ManagePO) getPO_bySeller(stub shim.ChaincodeStubInterface, args []strin
 	//fmt.Print("poAsBytes : ")
 	//fmt.Println(poAsBytes)
 	json.Unmarshal(poAsBytes, &poIndex)								//un stringify it aka JSON.parse()
-	//fmt.Print("poIndex : ")
-	//fmt.Println(poIndex)
+	fmt.Print("poIndex : ")
+	fmt.Println(poIndex)
 	//fmt.Println("len(poIndex) : ")
 	//fmt.Println(len(poIndex))
 	jsonResp = "{"
@@ -247,8 +282,8 @@ func (t *ManagePO) getPO_bySeller(stub shim.ChaincodeStubInterface, args []strin
 		//fmt.Print("valueAsBytes : ")
 		//fmt.Println(valueAsBytes)
 		json.Unmarshal(valueAsBytes, &valIndex)
-		//fmt.Print("valIndex: ")
-		//fmt.Print(valIndex)
+		fmt.Print("valIndex: ")
+		fmt.Print(valIndex)
 		if valIndex.SellerName == sellerName{
 			fmt.Println("Seller found")
 			jsonResp = jsonResp + "\""+ val + "\":" + string(valueAsBytes[:])
@@ -277,7 +312,12 @@ func (t *ManagePO) get_AllPO(stub shim.ChaincodeStubInterface, args []string) ([
 	fmt.Println("start get_AllPO")
 	var err error
 	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1 argument")
+		errMsg := "{ \"message\" : \"Incorrect number of arguments. Expecting \" \" as an argument\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	poAsBytes, err := stub.GetState(POIndexStr)
 	if err != nil {
@@ -318,19 +358,34 @@ func (t *ManagePO) get_AllPO(stub shim.ChaincodeStubInterface, args []string) ([
 // ============================================================================================================================
 func (t *ManagePO) delete_po(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 	if len(args) != 1 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 1")
+		errMsg := "{ \"message\" : \"Incorrect number of arguments. Expecting 'transId' as an argument\", \"code\" : \"503\"}"
+		err := stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	// set transId
 	transId := args[0]
 	err := stub.DelState(transId)													//remove the PO from chaincode
 	if err != nil {
-		return nil, errors.New("Failed to delete state")
+		errMsg := "{ \"message\" : \"Failed to delete state\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 
 	//get the PO index
 	poAsBytes, err := stub.GetState(POIndexStr)
 	if err != nil {
-		return nil, errors.New("Failed to get PO index")
+		errMsg := "{ \"message\" : \"Failed to get PO index\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	//fmt.Println("poAsBytes in delete po")
 	//fmt.Println(poAsBytes);
@@ -352,32 +407,45 @@ func (t *ManagePO) delete_po(stub shim.ChaincodeStubInterface, args []string) ([
 	}
 	jsonAsBytes, _ := json.Marshal(poIndex)									//save new index
 	err = stub.PutState(POIndexStr, jsonAsBytes)
+
+	tosend := "{ \"transID\" : \""+transId+"\", \"message\" : \"PO deleted succcessfully\", \"code\" : \"200\"}"
+	err = stub.SetEvent("evtsender", []byte(tosend))
+	if err != nil {
+		return nil, err
+	} 
+
+	fmt.Println("PO deleted succcessfully")
 	return nil, nil
 }
 // ============================================================================================================================
 // Write - update PO into chaincode state
 // ============================================================================================================================
 func (t *ManagePO) update_po(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
-	var jsonResp string
 	var err error
-	fmt.Println("start update_po")
-	if len(args) != 12 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 12.")
+	fmt.Println("Updating PO")
+	if len(args) != 13 {
+		errMsg := "{ \"message\" : \"Incorrect number of arguments. Expecting 13\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	// set transId
 	transId := args[0]
 	poAsBytes, err := stub.GetState(transId)									//get the PO for the specified transId from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + transId + "\"}"
-		return nil, errors.New(jsonResp)
+		errMsg := "{ \"message\" : \"Failed to get state for " + transId + "\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
-	//fmt.Print("poAsBytes in update po")
-	//fmt.Println(poAsBytes);
 	res := PO{}
 	json.Unmarshal(poAsBytes, &res)
 	if res.TransID == transId{
 		fmt.Println("PO found with transId : " + transId)
-		//fmt.Println(res);
 		res.SellerName = args[1]
 		res.BuyerName = args[2]
 		res.ExpectedDeliveryDate = args[3]
@@ -389,10 +457,18 @@ func (t *ManagePO) update_po(stub shim.ChaincodeStubInterface, args []string) ([
 		res.Price = args[9]
 		res.Buyer_sign = args[10]
 		res.Seller_sign = args[11]
+		res.Seller_Remarks = args[12]
+	}else{
+		errMsg := "{ \"message\" : \""+ transId+ " Not Found.\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	
 	//build the PO json string manually
-	order := 	`{`+
+	po_json := 	`{`+
 		`"transId": "` + res.TransID + `" , `+
 		`"sellerName": "` + res.SellerName + `" , `+
 		`"buyerName": "` + res.BuyerName + `" , `+
@@ -404,12 +480,21 @@ func (t *ManagePO) update_po(stub shim.ChaincodeStubInterface, args []string) ([
 		`"item_quantity": "` +  res.Item_quantity + `", `+ 
 		`"price": "` + res.Price + `" , `+ 
 		`"buyer_sign": "` + res.Buyer_sign + `" , `+ 
-		`"seller_sign": "` +  res.Seller_sign + `" `+ 
-		`}`
-	err = stub.PutState(transId, []byte(order))									//store PO with id as key
+		`"seller_sign": "` + res.Seller_sign + `" , `+ 
+		`"seller_remarks": "` +  res.Seller_Remarks + `" `+ 
+	`}`
+	err = stub.PutState(transId, []byte(po_json))									//store PO with id as key
 	if err != nil {
 		return nil, err
 	}
+
+	tosend := "{ \"transID\" : \""+transId+"\", \"message\" : \"PO updated succcessfully\", \"code\" : \"200\"}"
+	err = stub.SetEvent("evtsender", []byte(tosend))
+	if err != nil {
+		return nil, err
+	} 
+
+	fmt.Println("PO updated succcessfully")
 	return nil, nil
 }
 // ============================================================================================================================
@@ -418,7 +503,12 @@ func (t *ManagePO) update_po(stub shim.ChaincodeStubInterface, args []string) ([
 func (t *ManagePO) create_po(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
 	var err error
 	if len(args) != 12 {
-		return nil, errors.New("Incorrect number of arguments. Expecting 12")
+		errMsg := "{ \"message\" : \"Incorrect number of arguments. Expecting 12\", \"code\" : \"503\"}"
+		err = stub.SetEvent("errEvent", []byte(errMsg))
+		if err != nil {
+			return nil, err
+		} 
+		return nil, nil
 	}
 	fmt.Println("start create_po")
 	/*if len(args[0]) <= 0 {
@@ -447,38 +537,39 @@ func (t *ManagePO) create_po(stub shim.ChaincodeStubInterface, args []string) ([
 	}
 	if len(args[8]) <= 0 {
 		return nil, errors.New("9th argument must be a non-empty string")
-	}*/
-	transId := args[0]
-	sellerName := args[1]
-	buyerName := args[2]
-	expectedDeliveryDate := args[3]
-	po_date := args[4]
-	po_status := args[5]
-	item_id := args[6]
-	item_name := args[7]
-	item_quantity := args[8]
-	price := args[9]
-	buyer_sign := args[10]
-	seller_sign := args[11]
+		}*/
+		transId := args[0]
+		sellerName := args[1]
+		buyerName := args[2]
+		expectedDeliveryDate := args[3]
+		po_date := args[4]
+		po_status := args[5]
+		item_id := args[6]
+		item_name := args[7]
+		item_quantity := args[8]
+		price := args[9]
+		buyer_sign := args[10]
+		seller_sign := args[11]
+		seller_remarks := "NA"
+
+		poAsBytes, err := stub.GetState(transId)
+		if err != nil {
+			return nil, errors.New("Failed to get PO transID")
+		}
 	
-	poAsBytes, err := stub.GetState(transId)
-	if err != nil {
-		return nil, errors.New("Failed to get PO transID")
-	}
-	//fmt.Print("poAsBytes: ")
-	//fmt.Println(poAsBytes)
-	res := PO{}
-	json.Unmarshal(poAsBytes, &res)
-	//fmt.Print("res: ")
-	//fmt.Println(res)
-	if res.TransID == transId{
-		//fmt.Println("This PO arleady exists: " + transId)
-		//fmt.Println(res);
-		return nil, errors.New("This PO arleady exists")				//all stop a PO by this name exists
+		res := PO{}
+		json.Unmarshal(poAsBytes, &res)
+		if res.TransID == transId{
+			errMsg := "{ \"message\" : \"This PO arleady exists\", \"code\" : \"503\"}"
+			err := stub.SetEvent("errEvent", []byte(errMsg))
+			if err != nil {
+				return nil, err
+			} 
+		return nil, nil				//all stop a PO by this name exists
 	}
 	
 	//build the PO json string manually
-	order := 	`{`+
+	po_json := 	`{`+
 		`"transId": "` + transId + `" , `+
 		`"sellerName": "` + sellerName + `" , `+
 		`"buyerName": "` + buyerName + `" , `+
@@ -490,12 +581,13 @@ func (t *ManagePO) create_po(stub shim.ChaincodeStubInterface, args []string) ([
 		`"item_quantity": "` +  item_quantity + `", `+ 
 		`"price": "` + price + `" , `+ 
 		`"buyer_sign": "` + buyer_sign + `" , `+ 
-		`"seller_sign": "` +  seller_sign + `" `+ 
-		`}`
-		//fmt.Println("order: " + order)
-		fmt.Print("order in bytes array: ")
-		fmt.Println([]byte(order))
-	err = stub.PutState(transId, []byte(order))									//store PO with transId as key
+		`"seller_sign": "` + seller_sign + `" , `+ 
+		`"seller_remarks": "` +  seller_remarks + `" `+ 
+	`}`
+	
+	fmt.Print("po_json in bytes array: ")
+	fmt.Println([]byte(po_json))
+	err = stub.PutState(transId, []byte(po_json))									//store PO with transId as key
 	if err != nil {
 		return nil, err
 	}
@@ -521,6 +613,12 @@ func (t *ManagePO) create_po(stub shim.ChaincodeStubInterface, args []string) ([
 	if err != nil {
 		return nil, err
 	}
+
+	tosend := "{ \"transID\" : \""+transId+"\", \"message\" : \"PO created succcessfully\", \"code\" : \"200\"}"
+	err = stub.SetEvent("evtsender", []byte(tosend))
+	if err != nil {
+		return nil, err
+	} 
 
 	fmt.Println("end create_po")
 	return nil, nil
