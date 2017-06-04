@@ -6,7 +6,9 @@ regarding copyright ownership.  The ASF licenses this file
 to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License.  You may obtain a copy of the License at
+
   http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing,
 software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -994,20 +996,28 @@ func (t *ManageAgreement) update_agreement(stub shim.ChaincodeStubInterface, arg
 		if err != nil {
 			return nil, errors.New("Error while converting string 'total_value' to int ")
 		}
-		if (totalValue <= 10000 || res.Industry == "Books" || res.Industry == "Mobiles & Tablets"){
+
+		// Auto Approval
+		/*if (totalValue <= 10000 || res.Industry == "Books" || res.Industry == "Mobiles & Tablets"){
 			res.BuyerBank_sign = "true";
-			//buyerBankStr := "Buyer Bank Signature"
 			if (res.Industry == "Books" || res.Industry == "Mobiles & Tablets"){
 				res.SellerBank_sign = "true";
-				//sellerBankStr := "Seller Bank Signature"
 			}
+		}*/
+		if (totalValue <= 10000 && (res.Industry == "Books" || res.Industry == "Mobiles & Tablets")){
+			res.BuyerBank_sign = "true";
 		}
-		if(res.BuyerBank_sign == "true" && res.SellerBank_sign == "true" && res.Seller_sign == "true"){
-			res.Agreement_status = "Approved By Seller Bank"
-		}else if(res.BuyerBank_sign == "true" && res.SellerBank_sign == "false"){
+		if (res.Industry == "Books" || res.Industry == "Mobiles & Tablets"){
+			res.SellerBank_sign = "true";
+		}
+		if(res.BuyerBank_sign == "true" && res.Seller_sign == "false" && res.SellerBank_sign == "false"){
 			res.Agreement_status = "Approved By Buyer Bank"
-		}else if(res.BuyerBank_sign == "false" && res.SellerBank_sign == "false" && res.Seller_sign == "true"){
+		}
+		if(res.BuyerBank_sign == "true" && res.Seller_sign == "true" && res.SellerBank_sign == "false"){
 			res.Agreement_status = "Approved By Seller"
+		}
+		if(res.BuyerBank_sign == "true" && res.Seller_sign == "true" && res.SellerBank_sign == "true"){
+			res.Agreement_status = "Approved By Seller Bank"
 		}
 		
 	}else{
@@ -1095,7 +1105,6 @@ func (t *ManageAgreement) create_agreement(stub shim.ChaincodeStubInterface, arg
 		document_name := args[17]
 		document_url := args[18]
 		tc_text := args[19]
-
 		buyer_sign := args[20]
 		buyerBank_sign := args[21]
 		seller_sign := args[22]
@@ -1138,25 +1147,6 @@ func (t *ManageAgreement) create_agreement(stub shim.ChaincodeStubInterface, arg
 			return nil, nil
 		}
 		fmt.Println("Checked fraud list successfully.");
-		/*totalValue,err := strconv.Atoi(total_value)
-		if err != nil {
-			return nil, errors.New("Error while converting string 'total_value' to int ")
-		}
-		if (totalValue <= 10000 && industry == "Books" || industry == "Mobiles & Tablets"){
-			buyerBank_sign = "true";
-			//buyerBankStr := "Buyer Bank Signature"
-		}
-		if (industry == "Books" || industry == "Mobiles & Tablets"){
-			sellerBank_sign = "true";
-			//sellerBankStr := "Seller Bank Signature"
-		}
-		if(buyerBank_sign == "true" && sellerBank_sign == "true"){
-			agreement_status = "Approved By Seller Bank"
-		}else if(buyerBank_sign == "true" && sellerBank_sign == "false"){
-			agreement_status = "Approved By Buyer Bank"
-		}else if(buyerBank_sign == "false" && sellerBank_sign == "false" && seller_sign == "true"){
-			agreement_status = "Approved By Seller"
-		}*/
 
 		agreementAsBytes, err := stub.GetState(agreementId)
 		if err != nil {
@@ -1179,7 +1169,7 @@ func (t *ManageAgreement) create_agreement(stub shim.ChaincodeStubInterface, arg
 	}
 	
 	//build the Agreement json string manually
-	agreement_json := 	`{`+
+	input := 	`{`+
 		`"agreementId": "` + agreementId + `" , `+
 		`"transId": "` + transId + `" , `+ 
 		`"agreement_status": "` + agreement_status + `" , `+ 
@@ -1207,10 +1197,10 @@ func (t *ManageAgreement) create_agreement(stub shim.ChaincodeStubInterface, arg
 		`"industry": "` + industry + `" , `+
 		`"goodsPrice": "` + goodsPrice + `" `+
 		`}`
-	fmt.Println("agreement_json: " + agreement_json)
-	fmt.Print("agreement_json in bytes array: ")
-	fmt.Println([]byte(agreement_json))
-	err = stub.PutState(agreementId, []byte(agreement_json))									//store Agreement with agreementId as key
+		fmt.Println("input: " + input)
+		fmt.Print("input in bytes array: ")
+		fmt.Println([]byte(input))
+	err = stub.PutState(agreementId, []byte(input))									//store Agreement with agreementId as key
 	if err != nil {
 		return nil, err
 	}
@@ -1243,16 +1233,6 @@ func (t *ManageAgreement) create_agreement(stub shim.ChaincodeStubInterface, arg
 		return nil, err
 	}
 
-	/*var updateAgreementIndex []string
-	var arg =[]string{agreementId, bb_name, sb_name}
-	updateAgreementAsBytes,err := t.approve_agreement(stub,arg);
-	if err != nil {
-		jsonResp := "{\"Error\":\"Seller approval after creating a new agreement Failed.\"}"
-		return nil, errors.New(jsonResp)
-	}
-	json.Unmarshal(updateAgreementAsBytes, &updateAgreementIndex)
-	fmt.Println("updateAgreementIndex: ")
-	fmt.Println(updateAgreementIndex)*/
 	fmt.Println("end create_agreement")
 	return nil, nil
 }
